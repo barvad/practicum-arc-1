@@ -120,12 +120,7 @@ services:
       - "5003:5000"
     networks:
       - smarthome-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      
   # Device Status Service
   device-status-service:
     build:
@@ -133,6 +128,8 @@ services:
       dockerfile: ./SmartHome.DeviceStatusService.API/Dockerfile
     container_name: smarthome-device-status
     depends_on:
+      device-api:
+        condition: service_healthy
       init-kafka:
         condition: service_completed_successfully
       postgres:
@@ -147,7 +144,7 @@ services:
       Kafka__Topic: "device-commands"
       
       # Device API Configuration
-      DeviceApi__BaseUrl: "http://device-api:5002"
+      DeviceApi__BaseUrl: "http://device-api:5000"
       
       # ASP.NET Core Configuration
       ASPNETCORE_URLS: "http://+:5000"
@@ -159,12 +156,7 @@ services:
       - "5001:5000"
     networks:
       - smarthome-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+ 
       
   # Test device API    
   device-api:
@@ -182,6 +174,12 @@ services:
     restart: unless-stopped
     networks:
       - smarthome-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   postgres_data:

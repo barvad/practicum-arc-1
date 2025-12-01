@@ -1,0 +1,51 @@
+@startuml C4_Components
+!include https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Component.puml
+
+title Smart Home System - Microservices Component Diagram
+
+Container_Boundary(web_api, "Web API Gateway") {
+    Component(api_controller, "API Controller", "C# .NET", "Handles HTTP requests from users and devices")
+    Component(auth_component, "Authentication Component", "C# .NET", "Handles JWT token validation")
+    Component(command_producer, "Command Producer", "C# .NET", "Produces device commands to Kafka")
+}
+
+Container_Boundary(device_registry, "Device Registry Service") {
+    Component(device_controller, "Device Controller", "C# .NET", "API Layer: Device registration endpoints")
+    Component(device_service, "Device Service", "C# .NET", "Domain Layer: Device management logic")
+    Component(device_repository, "Device Repository", "C# .NET", "Data Layer: Data access for device operations")
+}
+
+Container_Boundary(device_status_service, "Device Status Service") {
+    Component(command_consumer, "Command Consumer", "C# .NET", "API Layer: Consumes device commands from Kafka")
+    Component(status_service, "Status Service", "C# .NET", "Domain Layer: Device status and command processing")
+    Component(device_communicator, "Device Communicator", "C# .NET", "Domain Layer: IoT device communication")
+    Component(status_repository, "Status Repository", "C# .NET", "Data Layer: Data access for device status")
+}
+
+Container(kafka, "Apache Kafka", "Message Broker", "Async commands and events")
+ContainerDb(postgres, "PostgreSQL", "Main Database", "Device data")
+
+' Connections within Web API Gateway
+Rel(api_controller, auth_component, "Validates tokens", "JWT")
+Rel(api_controller, device_controller, "Forwards registration requests", "HTTP/REST")
+Rel(api_controller, command_producer, "Sends device commands", "Internal")
+Rel(command_producer, kafka, "Produces device commands", "Kafka")
+
+' Connections within Device Registry (3-layer architecture)
+Rel(device_controller, device_service, "Calls service methods", "Internal")
+Rel(device_service, device_repository, "Uses repository for data access", "Internal")
+Rel(device_repository, postgres, "CRUD operations", "SQL")
+
+' Connections within Device Status Service (3-layer architecture)
+Rel(command_consumer, status_service, "Processes received commands", "Internal")
+Rel(command_consumer, kafka, "Consumes device commands", "Kafka")
+Rel(status_service, device_communicator, "Executes device communication", "Internal")
+Rel(status_service, status_repository, "Stores device status", "Internal")
+Rel(status_repository, postgres, "CRUD operations", "SQL")
+Rel(device_communicator, device, "Sends commands and retrieves data", "HTTP/REST")
+
+' External connections
+Rel(user, api_controller, "Sends HTTP requests", "HTTP/REST")
+Rel(device, api_controller, "Registers", "HTTP/REST")
+
+@enduml

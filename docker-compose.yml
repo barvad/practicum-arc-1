@@ -1,0 +1,191 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: smarthome-postgres
+    environment:
+      POSTGRES_DB: smarthome
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - smarthome-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Zookeeper (required for Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: smarthome-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - smarthome-network
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka Broker
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: smarthome-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    networks:
+      - smarthome-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:9092 --list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
+      
+  init-kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      # blocks until kafka is reachable
+      kafka-topics --bootstrap-server kafka:9092 --list
+
+      echo -e 'Creating kafka topics'
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic device-commands --replication-factor 1 --partitions 1
+      
+      echo -e 'Successfully created the following topics:'
+      kafka-topics --bootstrap-server kafka:9092 --list
+      
+      kafka-console-consumer --bootstrap-server kafka:9092 --topic device-commands --group device-status-service --from-beginning --timeout-ms 5000
+      "
+    networks:
+      - smarthome-network
+
+  # Kafka UI (Optional - for monitoring)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: smarthome-kafka-ui
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    ports:
+      - "8080:8080"
+    networks:
+      - smarthome-network
+
+  # Device Registry Service
+  device-registry-service:
+    build:
+      context: ./src/DeviceRegistryService
+      dockerfile: ./SmartHome.DeviceRegistryService.API/Dockerfile
+    container_name: smarthome-device-registry
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=smarthome;Username=postgres;Password=postgres123"
+      # ASP.NET Core Configuration
+      ASPNETCORE_URLS: "http://+:5000"
+     
+    ports:
+      - "5003:5000"
+    networks:
+      - smarthome-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+  # Device Status Service
+  device-status-service:
+    build:
+      context: ./src/DeviceStatusService
+      dockerfile: ./SmartHome.DeviceStatusService.API/Dockerfile
+    container_name: smarthome-device-status
+    depends_on:
+      init-kafka:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=smarthome;Username=postgres;Password=postgres123"
+      
+      # Kafka Configuration
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "device-status-service"
+      Kafka__Topic: "device-commands"
+      
+      # Device API Configuration
+      DeviceApi__BaseUrl: "http://device-api:5002"
+      
+      # ASP.NET Core Configuration
+      ASPNETCORE_URLS: "http://+:5000"
+      
+      # Logging
+      Logging__LogLevel__Default: "Information"
+      Logging__LogLevel__Microsoft.AspNetCore: "Warning"
+    ports:
+      - "5001:5000"
+    networks:
+      - smarthome-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+      
+  # Test device API    
+  device-api:
+    build:
+      context: ./Test/TestDeviceApi
+      dockerfile: ./TestDeviceApi/Dockerfile
+      args:
+        BUILD_CONFIGURATION: Release
+    ports:
+      - "5002:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+    container_name: test-device-api
+    restart: unless-stopped
+    networks:
+      - smarthome-network
+
+volumes:
+  postgres_data:
+
+networks:
+  smarthome-network:
+    driver: bridge

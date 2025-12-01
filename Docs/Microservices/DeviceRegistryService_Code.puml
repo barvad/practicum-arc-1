@@ -1,0 +1,165 @@
+@startuml
+namespace SmartHome.DeviceRegistryService.API.Controllers {
+    class DevicesController {
+        - IDeviceService _deviceService
+        + Get()
+        + Get(id)
+        + Post(request)
+        + Put(id, request)
+        + Delete(id)
+    }
+}
+
+namespace SmartHome.DeviceRegistryService.Domain.Interfaces {
+    interface IDeviceService {
+        + GetDevices()
+        + GetDevice(id)
+        + CreateDevice(request)
+        + UpdateDevice(id, request)
+        + DeleteDevice(id)
+    }
+
+    interface IDeviceRepository {
+        + GetById(id)
+        + GetAll()
+        + Add(device)
+        + Update(device)
+        + Delete(id)
+    }
+}
+
+namespace SmartHome.DeviceRegistryService.Domain.Services {
+    class DeviceService {
+        - IDeviceRepository _deviceRepository
+        + GetDevices()
+        + GetDevice(id)
+        + CreateDevice(request)
+        + UpdateDevice(id, request)
+        + DeleteDevice(id)
+        - MapToDto(device)
+    }
+}
+
+namespace SmartHome.DeviceRegistryService.Domain.Entities {
+    class Device {
+        + Guid Id
+        + string Name
+        + string Type
+        + string Location
+        + bool IsActive
+        + DateTime CreatedAt
+        + DateTime? UpdatedAt
+    }
+}
+
+namespace SmartHome.DeviceRegistryService.Domain.Models {
+    class DeviceDto {
+        + Guid Id
+        + string Name
+        + string Type
+        + string Location
+        + bool IsActive
+        + DateTime CreatedAt
+    }
+
+    class CreateDeviceRequest {
+        + string Name
+        + string Type
+        + string Location
+    }
+
+    class UpdateDeviceRequest {
+        + string Name
+        + string Type
+        + string Location
+        + bool IsActive
+    }
+}
+
+namespace SmartHome.DeviceRegistryService.Infrastructure.Data {
+    interface IDatabaseConnectionFactory {
+        + GetConnection()
+    }
+
+    class DatabaseConnectionFactory {
+        + GetConnection()
+    }
+
+    class DeviceRepository {
+        - IDatabaseConnectionFactory _connectionFactory
+        + GetById(id)
+        + GetAll()
+        + Add(device)
+        + Update(device)
+        + Delete(id)
+    }
+}
+
+namespace SmartHome.DeviceRegistryService.Domain {
+    class DependencyInjection {
+        + static AddDomainServices(services)
+    }
+}
+
+namespace SmartHome.DeviceRegistryService.Infrastructure {
+    class DependencyInjection {
+        + static AddInfrastructureServices(services)
+    }
+}
+
+' Relationships - Dependencies (Aggregation)
+DevicesController --> IDeviceService : _deviceService
+DeviceService --> IDeviceRepository : _deviceRepository
+DeviceRepository --> IDatabaseConnectionFactory : _connectionFactory
+
+' Relationships - Implementation
+DeviceService ..|> IDeviceService
+DeviceRepository ..|> IDeviceRepository
+DatabaseConnectionFactory ..|> IDatabaseConnectionFactory
+
+' Relationships - Usage/Parameter Types
+IDeviceService --> DeviceDto : returns
+IDeviceService --> CreateDeviceRequest : parameter
+IDeviceService --> UpdateDeviceRequest : parameter
+DeviceService --> Device : uses
+DeviceService --> DeviceDto : returns
+DeviceService --> CreateDeviceRequest : parameter
+DeviceService --> UpdateDeviceRequest : parameter
+DeviceRepository --> Device : uses
+DevicesController --> DeviceDto : returns
+DevicesController --> CreateDeviceRequest : parameter
+DevicesController --> UpdateDeviceRequest : parameter
+
+' Relationships - Method Calls (Usages)
+DevicesController --> IDeviceService : calls methods
+DeviceService --> IDeviceRepository : calls methods
+DeviceRepository --> IDatabaseConnectionFactory : calls methods
+
+' Relationships - Dependency Injection Registration
+SmartHome.DeviceRegistryService.Domain.DependencyInjection --> IDeviceService : registers
+SmartHome.DeviceRegistryService.Domain.DependencyInjection --> DeviceService : registers
+SmartHome.DeviceRegistryService.Infrastructure.DependencyInjection --> IDeviceRepository : registers
+SmartHome.DeviceRegistryService.Infrastructure.DependencyInjection --> DeviceRepository : registers
+SmartHome.DeviceRegistryService.Infrastructure.DependencyInjection --> IDatabaseConnectionFactory : registers
+SmartHome.DeviceRegistryService.Infrastructure.DependencyInjection --> DatabaseConnectionFactory : registers
+
+' Self-references (internal method calls)
+DevicesController --> DevicesController : internal calls
+DeviceService --> DeviceService : internal calls
+
+note top of DevicesController
+API Controller - handles HTTP requests
+Maps between DTOs and domain models
+end note
+
+note top of DeviceService
+Domain service - contains business logic
+Coordinates data access and business rules
+end note
+
+note top of DeviceRepository
+Infrastructure - data access layer
+Handles database operations using connection factory
+end note
+
+@enduml

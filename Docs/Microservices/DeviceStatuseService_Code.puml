@@ -1,0 +1,125 @@
+@startuml DeviceStatusService Class Diagram
+
+package "API Layer" {
+  class DeviceStatusController {
+    - _deviceStatusService: IDeviceStatusService
+    + GetStatus(deviceId)
+    + UpdateStatus(request)
+  }
+  
+  class UpdateStatusRequest {
+    + DeviceId: string
+    + Status: string
+  }
+  
+  class DeviceCommandConsumerService {
+    - _deviceStatusService: IDeviceStatusService
+    - _kafkaSettings: KafkaSettings
+    + StartAsync()
+    + StopAsync()
+  }
+  
+  class KafkaSettings {
+    + BootstrapServers: string
+    + Topic: string
+  }
+}
+
+package "Domain Layer" {
+  interface IDeviceStatusService {
+    + GetStatus(deviceId)
+    + UpdateStatus(command)
+  }
+  
+  class DeviceStatusService {
+    - _deviceRepository: IDeviceRepository
+    - _deviceApiClient: IDeviceApiClient
+    + GetStatus(deviceId)
+    + UpdateStatus(command)
+  }
+  
+  interface IDeviceRepository {
+    + GetById(deviceId)
+    + Update(device)
+  }
+  
+  interface IDeviceApiClient {
+    + SendCommand(request)
+  }
+  
+  class Device {
+    + Id: string
+    + Name: string
+    + Status: string
+  }
+  
+  class DeviceStatus {
+    + DeviceId: string
+    + Status: string
+    + Timestamp: DateTime
+  }
+  
+  class DeviceCommand {
+    + DeviceId: string
+    + Command: string
+  }
+  
+  class DeviceCommandRequest {
+    + DeviceId: string
+    + Command: string
+  }
+}
+
+package "Infrastructure Layer" {
+  class DeviceRepository {
+    - _connectionFactory: IDatabaseConnectionFactory
+    + GetById(deviceId)
+    + Update(device)
+  }
+  
+  interface IDatabaseConnectionFactory {
+    + CreateConnection()
+  }
+  
+  class DatabaseConnectionFactory {
+    + CreateConnection()
+  }
+  
+  class DependencyInjection {
+    + AddInfrastructureServices(services)
+  }
+}
+
+' Наследование и реализация интерфейсов
+DeviceStatusService ..|> IDeviceStatusService
+DeviceRepository ..|> IDeviceRepository
+DatabaseConnectionFactory ..|> IDatabaseConnectionFactory
+
+' Ассоциации и зависимости
+DeviceStatusController --> IDeviceStatusService : uses
+DeviceCommandConsumerService --> IDeviceStatusService : uses
+DeviceCommandConsumerService --> KafkaSettings : uses
+DeviceCommandConsumerService --> DeviceCommand : uses
+
+DeviceStatusService --> IDeviceRepository : uses
+DeviceStatusService --> IDeviceApiClient : uses
+DeviceStatusService --> DeviceStatus : uses
+DeviceStatusService --> DeviceCommand : uses
+DeviceStatusService --> DeviceCommandRequest : uses
+DeviceStatusService --> Device : uses
+
+DeviceRepository --> IDatabaseConnectionFactory : uses
+DeviceRepository --> Device : uses
+
+IDeviceRepository --> Device : uses
+IDeviceApiClient --> DeviceCommandRequest : uses
+IDeviceStatusService --> DeviceStatus : uses
+IDeviceStatusService --> DeviceCommand : uses
+
+DependencyInjection --> DeviceRepository : registers
+DependencyInjection --> DatabaseConnectionFactory : registers
+DependencyInjection --> DeviceStatusService : registers
+
+UpdateStatusRequest --> DeviceStatusController : parameter
+
+@enduml

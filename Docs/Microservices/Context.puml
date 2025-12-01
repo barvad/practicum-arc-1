@@ -1,0 +1,19 @@
+@startuml C4_Context
+!include https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Context.puml
+
+title Smart Home System - Microservices Architecture Context
+
+Person(user, "User", "Smart home system user")
+Person(device, "IoT Device", "Sensor or relay device")
+
+System(smarthome_orchestrator, "Smart Home Orchestrator", "Go application - main orchestrator")
+
+System_Ext(kafka, "Apache Kafka", "Message broker for async communication")
+System_Ext(postgres, "PostgreSQL", "Main database for orchestration")
+
+Rel(user, smarthome_orchestrator, "Manages devices, views data", "HTTP/REST")
+Rel(device, smarthome_orchestrator, "Registers on startup, sends data", "HTTP/REST only")
+Rel(smarthome_orchestrator, kafka, "Publishes/consumes events", "Kafka Protocol")
+Rel(smarthome_orchestrator, postgres, "Stores/retrieves orchestration data", "SQL")
+
+@enduml

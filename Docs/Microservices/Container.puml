@@ -1,0 +1,27 @@
+@startuml C4_Containers
+!include https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Container.puml
+
+title Smart Home System - Microservices Container Diagram
+
+Person(user, "User", "Smart home system user")
+Person(device, "IoT Device", "Sensor or relay device")
+
+System_Boundary(system_boundary, "System Layer") {
+    Container(web_api, "Web API Gateway", "C# .NET", "HTTP REST API for devices and users")
+    Container(device_registry, "Device Registry", "C# .NET", "Device registration")	
+    Container(device_status_service, "Device Status Service", "C# .NET", "Status and value data processing")
+}
+
+Container(kafka, "Apache Kafka", "Message Broker", "Async commands and events")
+ContainerDb(postgres, "PostgreSQL", "Main Database", "Device data")
+
+Rel(user, web_api, "Sends HTTP requests", "HTTP/REST")
+Rel(device, web_api, "Registers", "HTTP/REST")
+Rel(web_api, device_registry, "Sends registration data", "HTTP/REST")
+Rel(web_api, kafka, "Sends commands for devices", "Kafka")
+Rel(kafka, device_status_service, "Consumes device commands", "Kafka")
+Rel(device_status_service, device, "Retrieves data from IoT and sends commands", "HTTP/REST")
+Rel(device_status_service, postgres, "Saves device status and values", "SQL")
+Rel(device_registry, postgres, "Saves device metadata", "SQL")
+
+@enduml

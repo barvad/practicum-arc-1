@@ -95,7 +95,7 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
     ports:
-      - "8080:8080"
+      - "8089:8080"
     networks:
       - smarthome-network
 
@@ -166,7 +166,7 @@ services:
       args:
         BUILD_CONFIGURATION: Release
     ports:
-      - "5002:5000"
+      - "8081:5000"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5000
@@ -181,6 +181,25 @@ services:
       retries: 3
       start_period: 40s
 
+  smarthome-api:
+    build:
+      context: ./Test/smart_home
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    container_name: smarthome-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      device-api:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres123@postgres:5432/smarthome
+      - TEMPERATURE_API_URL="http://device-api:5000"
+    restart: unless-stopped
+    networks:
+      - smarthome-network
+      
 volumes:
   postgres_data:
 

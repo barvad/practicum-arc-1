@@ -1,7 +1,10 @@
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 var app = builder.Build();
 var random = new Random();
-
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.MapPost("/api/devices/{deviceId}/command", async (int deviceId, DeviceCommandRequest request) =>
 {

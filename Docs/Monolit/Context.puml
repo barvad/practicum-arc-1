@@ -1,0 +1,16 @@
+@startuml C4_Context
+!include https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Context.puml
+
+title Smart Home System - Context Diagram
+
+Person(user, "User", "Smart home system user")
+System(smarthome_app, "Smart Home Application", "Go application for managing smart home sensors")
+
+System_Ext(temperature_api, "External Temperature API", "External temperature data provider service")
+System_Ext(postgres, "PostgreSQL", "Database for storing sensor information")
+
+Rel(user, smarthome_app, "Manages sensors, views data", "HTTP/REST")
+Rel(smarthome_app, temperature_api, "Gets temperature data", "HTTP/REST")
+Rel(smarthome_app, postgres, "Stores/retrieves sensor data", "SQL")
+
+@enduml

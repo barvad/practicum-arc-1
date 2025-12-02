@@ -1,0 +1,114 @@
+asyncapi: 3.0.0
+info:
+  title: Smart Home System - Device Commands Kafka API
+  version: 1.0.0
+  description: |
+    AsyncAPI documentation for Device Commands topic in Smart Home System.
+    Matches C# models in Device Status Service.
+  contact:
+    name: Smart Home Development Team
+    email: dev@smarthome.example.com
+
+servers:
+  kafka-dev:
+    host: localhost:29092
+    protocol: kafka
+    description: Development Kafka broker
+  kafka-prod:
+    host: kafka:9092
+    protocol: kafka
+    description: Production Kafka broker
+
+defaultContentType: application/json
+
+channels:
+  device-commands:
+    address: device-commands
+    messages:
+      DeviceCommand:
+        name: DeviceCommand
+        title: Device Command Message
+        summary: Command to control smart home devices
+        contentType: application/json
+        payload:
+          $ref: '#/components/schemas/DeviceCommand'
+        examples:
+          - name: Turn on device
+            payload:
+              deviceId: 1
+              commandType: "turn_on"
+              status: "active"
+              value: 1.0
+              timestamp: "2024-01-15T10:30:00Z"
+              correlationId: "cmd-12345"
+          - name: Set temperature
+            payload:
+              deviceId: 2
+              commandType: "set_temperature"
+              status: "active"
+              value: 22.5
+              timestamp: "2024-01-15T10:35:00Z"
+              correlationId: "cmd-67890"
+
+operations:
+  publish-device-command:
+    action: send
+    channel:
+      $ref: '#/channels/device-commands'
+    summary: Publish device command to Kafka
+    description: Web API Gateway produces commands to this topic
+
+  consume-device-command:
+    action: receive
+    channel:
+      $ref: '#/channels/device-commands'
+    summary: Consume device commands from Kafka
+    description: Device Status Service consumes and processes commands
+
+components:
+  messages:
+    DeviceCommand:
+      payload:
+        $ref: '#/components/schemas/DeviceCommand'
+
+  schemas:
+    DeviceCommand:
+      type: object
+      required:
+        - deviceId
+        - commandType
+        - status
+        - value
+        - timestamp
+        - correlationId
+      properties:
+        deviceId:
+          type: integer
+          minimum: 1
+          description: Unique identifier of the target device
+          example: 1
+        commandType:
+          type: string
+          description: Type of command to execute
+          examples: ["turn_on", "turn_off", "set_temperature", "set_value"]
+        status:
+          type: string
+          description: Desired status of the device
+          examples: ["active", "inactive", "error"]
+        value:
+          type: number
+          format: float
+          description: Value associated with the command
+          minimum: 0
+          example: 22.5
+        timestamp:
+          type: string
+          format: date-time
+          description: Time when the command was created
+          example: "2024-01-15T10:30:00Z"
+        correlationId:
+          type: string
+          description: Unique identifier for request correlation
+          pattern: '^[a-zA-Z0-9_-]+$'
+          example: "cmd-12345"
+      additionalProperties: false

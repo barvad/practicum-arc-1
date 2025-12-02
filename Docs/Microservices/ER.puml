@@ -1,0 +1,48 @@
+@startuml
+entity User {
+  * id
+  --
+  username
+  email
+  password_hash
+  first_name
+  last_name
+  created_at
+}
+
+entity House {
+  * id
+  --
+  name
+  address
+  city
+  user_id
+  created_at
+}
+
+entity DeviceType {
+  * id
+  --
+  name
+  category
+  manufacturer
+}
+
+entity sensors {
+  * id
+  --
+  name
+  type
+  location
+  value
+  status
+  house_id
+  device_type_id
+  last_updated
+  created_at
+}
+
+User ||--o{ House : "owns"
+House ||--o{ sensors : "contains"
+DeviceType ||--o{ sensors : "categorizes"
+@enduml
